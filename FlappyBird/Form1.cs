@@ -5,6 +5,13 @@ namespace FlappyBird
         public Form1()
         {
             InitializeComponent();
+            this.DoubleBuffered = true;
+            this.BackColor = Color.SkyBlue;
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

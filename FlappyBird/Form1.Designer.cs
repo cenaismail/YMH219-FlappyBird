@@ -28,10 +28,20 @@
         /// </summary>
         private void InitializeComponent()
         {
-            components = new System.ComponentModel.Container();
+            SuspendLayout();
+            // 
+            // Form1
+            // 
+            AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
-            Text = "Form1";
+            BackColor = Color.SkyBlue;
+            ClientSize = new Size(482, 653);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MinimizeBox = false;
+            Name = "Form1";
+            Text = "Flappy Bird";
+            Load += Form1_Load;
+            ResumeLayout(false);
         }
 
         #endregion
