@@ -1,0 +1,134 @@
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using FlappyBird.Entities;
+using FlappyBird.Rendering;
+using FlappyBird.Scene;
+using FlappyBird.UI;
+
+namespace FlappyBird.Core
+{
+    /// <summary>
+    /// Oyunun tüm nesnelerini ve durumunu yöneten sınıf.
+    /// Form yalnızca olayları bu sınıfa iletir; çizim ve mantık burada.
+    /// Tüm koordinatlar 450x800'lük sanal bir ekrana göredir, form boyutu değişince ölçeklenir.
+    /// </summary>
+    public class Game
+    {
+        public const float Width = 450f;
+        public const float Height = 800f;
+
+        private readonly Background _background;
+        private readonly Snowfall _snowfall;
+        private readonly StartScreen _startScreen;
+        private readonly Bird _bird;
+        private readonly List<Pipe> _menuPipes = new List<Pipe>();
+        private readonly List<LightString> _lights = new List<LightString>();
+
+        private float _time;
+
+        public GameState State { get; private set; }
+        public int Score { get; private set; }
+
+        public Game()
+        {
+            _background = new Background(Width, Height);
+            _snowfall = new Snowfall(90, Width, Height);
+            _startScreen = new StartScreen(Width);
+            _bird = new Bird(214, 196);
+
+            // Menüdeki dört dekoratif boru (görseldeki yerleşim)
+            _menuPipes.Add(new Pipe(40, 74, -10, 168, false));
+            _menuPipes.Add(new Pipe(392, 74, -10, 222, false));
+            _menuPipes.Add(new Pipe(16, 96, 650, Height + 10, true));
+            _menuPipes.Add(new Pipe(386, 74, 668, Height + 10, true));
+
+            _lights.Add(new LightString(new PointF(30, 92), new PointF(124, 22), 8, 7, 0));
+            _lights.Add(new LightString(new PointF(386, 116), new PointF(456, 62), 6, 5, 1));
+            _lights.Add(new LightString(new PointF(4, 700), new PointF(118, 760), 10, 7, 2));
+            _lights.Add(new LightString(new PointF(380, 760), new PointF(456, 700), 8, 5, 3));
+
+            State = GameState.Menu;
+        }
+
+        public void Update(float dt)
+        {
+            _time += dt;
+            _snowfall.Update(dt, _time);
+
+            if (State == GameState.Menu)
+                _bird.Hover(_time);
+
+            // TODO (sonraki adım): Playing durumunda yer çekimi, boru hareketi, çarpışma ve skor
+        }
+
+        public void Draw(Graphics g)
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+            _background.DrawSky(g, _time);
+            _background.DrawLandscape(g, _time);
+
+            foreach (Pipe p in _menuPipes) p.Draw(g);
+            foreach (LightString l in _lights) l.Draw(g, _time);
+
+            if (State == GameState.Menu)
+            {
+                _startScreen.Draw(g, _time);
+            }
+            else
+            {
+                DrawPlaceholder(g);
+            }
+
+            _bird.Draw(g);
+            _snowfall.Draw(g);
+        }
+
+        private static void DrawPlaceholder(Graphics g)
+        {
+            using (var path = new GraphicsPath())
+            {
+                path.AddString("Oyun ekrani - sonraki adim\n(Esc: menu)", FontManager.Title, 0, 26,
+                    new RectangleF(0, 380, Width, 100), new StringFormat { Alignment = StringAlignment.Center });
+                using (var pen = new Pen(Palette.Outline, 6) { LineJoin = LineJoin.Round })
+                    g.DrawPath(pen, path);
+                using (var b = new SolidBrush(Palette.Cream))
+                    g.FillPath(b, path);
+            }
+        }
+
+        // ------------------------------------------------------------- Girdi
+
+        public void Start()
+        {
+            if (State == GameState.Menu)
+            {
+                State = GameState.Playing;
+                Score = 0;
+            }
+        }
+
+        public void BackToMenu()
+        {
+            State = GameState.Menu;
+        }
+
+        public void OnMouseMove(PointF p)
+        {
+            _startScreen.IsButtonHovered = State == GameState.Menu && _startScreen.HitTest(p);
+        }
+
+        public void OnMouseClick(PointF p)
+        {
+            if (State == GameState.Menu && _startScreen.HitTest(p))
+                Start();
+        }
+
+        public bool IsOverButton(PointF p)
+        {
+            return State == GameState.Menu && _startScreen.HitTest(p);
+        }
+    }
+}
