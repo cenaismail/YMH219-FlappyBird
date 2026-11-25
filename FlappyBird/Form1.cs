@@ -22,9 +22,9 @@ namespace FlappyBird
             InitializeComponent();
 
             Text = "Flappy Bird - Christmas Edition";
-            // Pencere, ekranın kullanılabilir yüksekliğinin %88'i kadar olsun (9:16 oran korunur)
+            // Pencere, ekranın kullanılabilir yüksekliğinin %78'i kadar olsun (9:16 oran korunur)
             Rectangle work = Screen.PrimaryScreen.WorkingArea;
-            int height = (int)(work.Height * 0.88);
+            int height = (int)(work.Height * 0.78);
             int width = (int)(height * Game.Width / Game.Height);
             ClientSize = new Size(width, height - SystemInformation.CaptionHeight);
             MinimumSize = new Size(260, 420);
@@ -90,6 +90,10 @@ namespace FlappyBird
 
         // ---------------------------------------------------------- Olaylar
 
+        // Tuş basılı tutulunca Windows KeyDown olayını tekrar tekrar gönderir.
+        // Bu bayrak sayesinde her basışta yalnızca bir kez zıplanır.
+        private bool _jumpKeyHeld;
+
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
@@ -98,12 +102,24 @@ namespace FlappyBird
                 case Keys.Space:
                 case Keys.Enter:
                 case Keys.Up:
-                    _game.Start();
+                    if (!_jumpKeyHeld)
+                    {
+                        _jumpKeyHeld = true;
+                        _game.OnJump();
+                    }
+                    e.SuppressKeyPress = true;
                     break;
                 case Keys.Escape:
                     _game.BackToMenu();
                     break;
             }
+        }
+
+        protected override void OnKeyUp(KeyEventArgs e)
+        {
+            base.OnKeyUp(e);
+            if (e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter || e.KeyCode == Keys.Up)
+                _jumpKeyHeld = false;
         }
 
         protected override void OnMouseMove(MouseEventArgs e)

@@ -6,13 +6,21 @@ using FlappyBird.Rendering;
 namespace FlappyBird.Entities
 {
     /// <summary>
-    /// Noel Baba şapkalı, atkılı kuş. Şimdilik menüde süzülme animasyonu yapıyor;
-    /// oyun aşamasında hız (Velocity) ve yer çekimi bu sınıfa eklenecek.
+    /// Noel Baba şapkalı, atkılı kuş. Menüde yerinde süzülür; oyunda yer çekimiyle
+    /// düşer ve Jump() çağrıldığında yukarı doğru hız kazanır.
     /// </summary>
     public class Bird
     {
+        // Çizimde kullanılan gövde yarıçapları (ölçeklenmeden önce)
         public const float RadiusX = 34f;
         public const float RadiusY = 30f;
+
+        /// <summary>Kuşun çizim ölçeği. 1 = orijinal boyut.</summary>
+        public const float Size = 0.82f;
+
+        /// <summary>Ölçek uygulanmış gerçek yarıçaplar (çarpışma kontrolü bunları kullanır).</summary>
+        public const float HitRadiusX = RadiusX * Size;
+        public const float HitRadiusY = RadiusY * Size;
 
         private static readonly Color Outline = Color.FromArgb(58, 36, 22);
         private static readonly Color BodyLight = Color.FromArgb(255, 226, 98);
@@ -20,8 +28,20 @@ namespace FlappyBird.Entities
         private static readonly Color Beak = Color.FromArgb(255, 132, 34);
         private static readonly Color BeakDark = Color.FromArgb(226, 92, 20);
 
+        /// <summary>Yer çekimi ivmesi (piksel / saniye²).</summary>
+        public const float Gravity = 1500f;
+
+        /// <summary>Zıplayınca kuşa verilen dikey hız (eksi = yukarı).</summary>
+        public const float JumpVelocity = -460f;
+
+        /// <summary>Düşüş hızının üst sınırı.</summary>
+        public const float MaxFallSpeed = 650f;
+
         public float X { get; set; }
         public float Y { get; set; }
+
+        /// <summary>Dikey hız (piksel / saniye). Pozitif değer aşağı doğrudur.</summary>
+        public float Velocity { get; private set; }
 
         /// <summary>Derece cinsinden eğim (+ aşağı bakar).</summary>
         public float Rotation { get; set; }
@@ -46,9 +66,47 @@ namespace FlappyBird.Entities
             WingAngle = (float)Math.Sin(time * 14) * 28;
         }
 
+        /// <summary>Kuşu başlangıç konumuna ve hızsız hale getirir.</summary>
+        public void Reset()
+        {
+            Y = _baseY;
+            Velocity = 0;
+            Rotation = 0;
+        }
+
+        /// <summary>Kuşa yukarı doğru ani bir hız verir.</summary>
+        public void Jump()
+        {
+            Velocity = JumpVelocity;
+        }
+
+        /// <summary>
+        /// Oyun sırasında her karede çağrılır: yer çekimi hızı artırır, hız da konumu değiştirir.
+        /// dt: son kareden bu yana geçen süre (saniye).
+        /// </summary>
+        public void Update(float dt, float time)
+        {
+            Velocity = Math.Min(Velocity + Gravity * dt, MaxFallSpeed);
+            Y += Velocity * dt;
+
+            // Yükselirken burnu yukarı, düşerken aşağı baksın
+            Rotation = Math.Max(-25f, Math.Min(70f, Velocity * 0.12f));
+
+            // Yükselirken hızlı kanat çırpar, düşerken kanat sabit kalır
+            WingAngle = Velocity < 150 ? (float)Math.Sin(time * 22) * 30 : -10;
+        }
+
+        /// <summary>Kuşu yere oturtur (Game Over sonrası).</summary>
+        public void LandOn(float groundY)
+        {
+            Y = groundY - HitRadiusY;
+            Velocity = 0;
+            WingAngle = -10;
+        }
+
         public RectangleF Bounds
         {
-            get { return new RectangleF(X - RadiusX + 4, Y - RadiusY + 4, RadiusX * 2 - 8, RadiusY * 2 - 8); }
+            get { return new RectangleF(X - HitRadiusX + 3, Y - HitRadiusY + 3, HitRadiusX * 2 - 6, HitRadiusY * 2 - 6); }
         }
 
         public void Draw(Graphics g)
@@ -56,6 +114,7 @@ namespace FlappyBird.Entities
             GraphicsState saved = g.Save();
             g.TranslateTransform(X, Y);
             g.RotateTransform(Rotation);
+            g.ScaleTransform(Size, Size);
 
             DrawSpeedLines(g);
             DrawScarfTail(g);

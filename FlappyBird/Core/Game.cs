@@ -18,6 +18,9 @@ namespace FlappyBird.Core
         public const float Width = 450f;
         public const float Height = 800f;
 
+        /// <summary>Kuşun çarptığında oyunun bittiği zemin çizgisi (çitin üstü).</summary>
+        public const float GroundY = 752f;
+
         private readonly Background _background;
         private readonly Snowfall _snowfall;
         private readonly StartScreen _startScreen;
@@ -51,16 +54,57 @@ namespace FlappyBird.Core
             State = GameState.Menu;
         }
 
+        // ------------------------------------------------------------- Oyun döngüsü
+
         public void Update(float dt)
         {
             _time += dt;
             _snowfall.Update(dt, _time);
 
-            if (State == GameState.Menu)
-                _bird.Hover(_time);
+            switch (State)
+            {
+                case GameState.Menu:
+                    _bird.Hover(_time);
+                    break;
 
-            // TODO (sonraki adım): Playing durumunda yer çekimi, boru hareketi, çarpışma ve skor
+                case GameState.Playing:
+                    _bird.Update(dt, _time);
+                    CheckCollisions();
+                    // TODO (sonraki adım): borular, boru çarpışması ve skor
+                    break;
+
+                case GameState.GameOver:
+                    // Kuş yere değene kadar düşmeye devam eder
+                    if (_bird.Y + Bird.HitRadiusY < GroundY)
+                    {
+                        _bird.Update(dt, _time);
+                        if (_bird.Y + Bird.HitRadiusY >= GroundY) _bird.LandOn(GroundY);
+                    }
+                    break;
+            }
         }
+
+        private void CheckCollisions()
+        {
+            // Zemine çarpma
+            if (_bird.Y + Bird.HitRadiusY >= GroundY)
+            {
+                _bird.LandOn(GroundY);
+                GameOver();
+                return;
+            }
+
+            // Ekranın üstünden çıkmasın
+            if (_bird.Y - Bird.HitRadiusY < 0)
+                _bird.Y = Bird.HitRadiusY;
+        }
+
+        private void GameOver()
+        {
+            State = GameState.GameOver;
+        }
+
+        // ------------------------------------------------------------- Çizim
 
         public void Draw(Graphics g)
         {
@@ -70,48 +114,89 @@ namespace FlappyBird.Core
             _background.DrawSky(g, _time);
             _background.DrawLandscape(g, _time);
 
-            foreach (Pipe p in _menuPipes) p.Draw(g);
-            foreach (LightString l in _lights) l.Draw(g, _time);
-
             if (State == GameState.Menu)
             {
+                foreach (Pipe p in _menuPipes) p.Draw(g);
+                foreach (LightString l in _lights) l.Draw(g, _time);
                 _startScreen.Draw(g, _time);
-            }
-            else
-            {
-                DrawPlaceholder(g);
             }
 
             _bird.Draw(g);
             _snowfall.Draw(g);
+
+            if (State == GameState.Playing || State == GameState.GameOver)
+                DrawScore(g);
+            if (State == GameState.GameOver)
+                DrawGameOver(g);
         }
 
-        private static void DrawPlaceholder(Graphics g)
+        private void DrawScore(Graphics g)
         {
+            DrawOutlinedText(g, Score.ToString(), 56, new RectangleF(0, 40, Width, 80), Palette.Cream, 8);
+        }
+
+        private void DrawGameOver(Graphics g)
+        {
+            var panel = new RectangleF(55, 290, Width - 110, 190);
+            using (var path = Shapes.RoundedRect(panel, 24))
+            using (var bg = new SolidBrush(Color.FromArgb(215, 18, 28, 80)))
+            using (var pen = new Pen(Palette.Outline, 4))
+            {
+                g.FillPath(bg, path);
+                g.DrawPath(pen, path);
+            }
+            Shapes.FillSnowCap(g, panel.X + 10, panel.Y + 1, panel.Width - 20, 12, 4);
+
+            DrawOutlinedText(g, "Game Over", 50, new RectangleF(panel.X, panel.Y + 26, panel.Width, 64), Palette.Red, 8);
+            DrawOutlinedText(g, "Skor: " + Score, 30, new RectangleF(panel.X, panel.Y + 92, panel.Width, 40), Palette.Cream, 6);
+            DrawOutlinedText(g, "Space: Yeniden Basla   Esc: Menu", 17, new RectangleF(panel.X, panel.Y + 142, panel.Width, 30),
+                Palette.Gold, 4);
+        }
+
+        private static void DrawOutlinedText(Graphics g, string text, float size, RectangleF area, Color fill, float outline)
+        {
+            using (var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
             using (var path = new GraphicsPath())
             {
-                path.AddString("Oyun ekrani - sonraki adim\n(Esc: menu)", FontManager.Title, 0, 26,
-                    new RectangleF(0, 380, Width, 100), new StringFormat { Alignment = StringAlignment.Center });
-                using (var pen = new Pen(Palette.Outline, 6) { LineJoin = LineJoin.Round })
+                path.AddString(text, FontManager.Title, 0, size, area, format);
+                using (var pen = new Pen(Palette.Outline, outline) { LineJoin = LineJoin.Round })
                     g.DrawPath(pen, path);
-                using (var b = new SolidBrush(Palette.Cream))
+                using (var b = new SolidBrush(fill))
                     g.FillPath(b, path);
             }
         }
 
         // ------------------------------------------------------------- Girdi
 
+        /// <summary>Space / yukarı ok / tıklama: duruma göre başlat, zıpla veya yeniden başlat.</summary>
+        public void OnJump()
+        {
+            switch (State)
+            {
+                case GameState.Menu:
+                    Start();
+                    break;
+                case GameState.Playing:
+                    _bird.Jump();
+                    break;
+                case GameState.GameOver:
+                    Start();
+                    break;
+            }
+        }
+
+        /// <summary>Yeni oyun: skor sıfırlanır, kuş başa döner ve ilk zıplamayı yapar.</summary>
         public void Start()
         {
-            if (State == GameState.Menu)
-            {
-                State = GameState.Playing;
-                Score = 0;
-            }
+            Score = 0;
+            _bird.Reset();
+            _bird.Jump();
+            State = GameState.Playing;
         }
 
         public void BackToMenu()
         {
+            _bird.Reset();
             State = GameState.Menu;
         }
 
@@ -122,8 +207,14 @@ namespace FlappyBird.Core
 
         public void OnMouseClick(PointF p)
         {
-            if (State == GameState.Menu && _startScreen.HitTest(p))
-                Start();
+            if (State == GameState.Menu)
+            {
+                if (_startScreen.HitTest(p)) Start();
+            }
+            else
+            {
+                OnJump();
+            }
         }
 
         public bool IsOverButton(PointF p)

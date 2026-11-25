@@ -10,6 +10,9 @@ namespace FlappyBird.UI
     {
         public const string ButtonText = "Tap to Play";
 
+        /// <summary>Butonun altında gösterilen kontrol ipucu.</summary>
+        public const string HintText = "Space / Tıkla : Zıpla";
+
         private readonly float _centerX;
 
         /// <summary>Butonun sanal ekrandaki alanı (tıklama kontrolü için).</summary>
@@ -40,6 +43,30 @@ namespace FlappyBird.UI
             DrawHolly(g, new PointF(bird.Right + 40, bird.Top + 6), true);
 
             DrawButton(g, time);
+            DrawHint(g, time);
+        }
+
+        /// <summary>Butonun altında hafifçe yanıp sönen kontrol ipucu.</summary>
+        private void DrawHint(Graphics g, float time)
+        {
+            int alpha = (int)(200 + 55 * Math.Sin(time * 2.5));
+            var pill = new RectangleF(_centerX - 100, ButtonBounds.Bottom + 22, 200, 32);
+
+            using (var path = Shapes.RoundedRect(pill, 16))
+            using (var bg = new SolidBrush(Color.FromArgb(150, 10, 16, 50)))
+            using (var border = new Pen(Color.FromArgb(120, Palette.Snow), 1.5f))
+            {
+                g.FillPath(bg, path);
+                g.DrawPath(border, path);
+            }
+
+            using (var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+            using (var text = new GraphicsPath())
+            {
+                text.AddString(HintText, FontManager.Ui, (int)FontStyle.Bold, 16, pill, format);
+                using (var b = new SolidBrush(Color.FromArgb(alpha, Palette.Cream)))
+                    g.FillPath(b, text);
+            }
         }
 
         // ------------------------------------------------------------- Başlık

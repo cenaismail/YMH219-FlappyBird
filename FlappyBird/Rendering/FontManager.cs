@@ -13,6 +13,30 @@ namespace FlappyBird.Rendering
     {
         private static PrivateFontCollection _collection;
         private static FontFamily _title;
+        private static FontFamily _ui;
+
+        /// <summary>
+        /// Küçük yazılar için Windows'un sistem yazı tipi. Türkçe karakterlerin (ş, ğ, İ) hepsini
+        /// destekler; başlık yazı tipinde bu harfler yoktur.
+        /// </summary>
+        public static FontFamily Ui
+        {
+            get
+            {
+                if (_ui == null) _ui = FindInstalled("Segoe UI", "Tahoma", "Arial");
+                return _ui;
+            }
+        }
+
+        private static FontFamily FindInstalled(params string[] names)
+        {
+            foreach (string name in names)
+            {
+                try { return new FontFamily(name); }
+                catch (ArgumentException) { }
+            }
+            return FontFamily.GenericSansSerif;
+        }
 
         public static FontFamily Title
         {
