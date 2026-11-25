@@ -16,7 +16,7 @@ namespace FlappyBird.Entities
         public const float RadiusY = 30f;
 
         /// <summary>Kuşun çizim ölçeği. 1 = orijinal boyut.</summary>
-        public const float Size = 0.82f;
+        public const float Size = 0.68f;
 
         /// <summary>Ölçek uygulanmış gerçek yarıçaplar (çarpışma kontrolü bunları kullanır).</summary>
         public const float HitRadiusX = RadiusX * Size;
@@ -29,13 +29,20 @@ namespace FlappyBird.Entities
         private static readonly Color BeakDark = Color.FromArgb(226, 92, 20);
 
         /// <summary>Yer çekimi ivmesi (piksel / saniye²).</summary>
-        public const float Gravity = 1500f;
+        public const float Gravity = 1150f;
 
         /// <summary>Zıplayınca kuşa verilen dikey hız (eksi = yukarı).</summary>
-        public const float JumpVelocity = -460f;
+        public const float JumpVelocity = -400f;
 
         /// <summary>Düşüş hızının üst sınırı.</summary>
-        public const float MaxFallSpeed = 650f;
+        public const float MaxFallSpeed = 560f;
+
+        /// <summary>Kuşun burnunun en fazla ne kadar yukarı/aşağı dönebileceği (derece).</summary>
+        public const float MaxUpAngle = -18f;
+        public const float MaxDownAngle = 35f;
+
+        /// <summary>Açının hedefe ne kadar hızlı yaklaşacağı. Büyüdükçe dönüş sertleşir.</summary>
+        public const float RotationSmoothing = 8f;
 
         public float X { get; set; }
         public float Y { get; set; }
@@ -49,12 +56,14 @@ namespace FlappyBird.Entities
         /// <summary>Kanat çırpma animasyonunun açısı.</summary>
         public float WingAngle { get; private set; }
 
+        private readonly float _baseX;
         private readonly float _baseY;
 
         public Bird(float x, float y)
         {
             X = x;
             Y = y;
+            _baseX = x;
             _baseY = y;
         }
 
@@ -69,7 +78,14 @@ namespace FlappyBird.Entities
         /// <summary>Kuşu başlangıç konumuna ve hızsız hale getirir.</summary>
         public void Reset()
         {
-            Y = _baseY;
+            Reset(_baseX, _baseY);
+        }
+
+        /// <summary>Kuşu verilen konuma taşır ve hızını sıfırlar.</summary>
+        public void Reset(float x, float y)
+        {
+            X = x;
+            Y = y;
             Velocity = 0;
             Rotation = 0;
         }
@@ -89,8 +105,11 @@ namespace FlappyBird.Entities
             Velocity = Math.Min(Velocity + Gravity * dt, MaxFallSpeed);
             Y += Velocity * dt;
 
-            // Yükselirken burnu yukarı, düşerken aşağı baksın
-            Rotation = Math.Max(-25f, Math.Min(70f, Velocity * 0.12f));
+            // Yükselirken burnu hafifçe yukarı, düşerken hafifçe aşağı baksın.
+            // Açı hıza göre hesaplanır ama sınırlıdır (-18° ile +35° arası) ve
+            // hedef açıya yavaşça yaklaşılır; böylece ani dönüşler olmaz.
+            float targetRotation = Math.Max(MaxUpAngle, Math.Min(MaxDownAngle, Velocity * 0.06f));
+            Rotation += (targetRotation - Rotation) * Math.Min(1f, dt * RotationSmoothing);
 
             // Yükselirken hızlı kanat çırpar, düşerken kanat sabit kalır
             WingAngle = Velocity < 150 ? (float)Math.Sin(time * 22) * 30 : -10;

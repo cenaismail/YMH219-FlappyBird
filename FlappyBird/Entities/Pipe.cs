@@ -1,12 +1,13 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using FlappyBird.Rendering;
+using FlappyBird.Scene;
 
 namespace FlappyBird.Entities
 {
     /// <summary>
     /// Karlı yeşil boru. Ağız kısmı (lip) borunun üstünde ya da altında olabilir.
-    /// Oyun aşamasında X değeri her karede azaltılarak boru sola kaydırılacak.
+    /// Oyunda PipePair sınıfı X değerini her karede azaltarak boruyu sola kaydırır.
     /// </summary>
     public class Pipe
     {
@@ -30,17 +31,53 @@ namespace FlappyBird.Entities
             OpensUpward = opensUpward;
         }
 
-        /// <summary>Çarpışma kontrolü için borunun kapladığı alan.</summary>
-        public RectangleF Bounds
+        /// <summary>Borunun gövdesi (ağız hariç).</summary>
+        public RectangleF BodyBounds
         {
-            get { return new RectangleF(X - LipOverhang, Top, Width + LipOverhang * 2, Bottom - Top); }
+            get { return new RectangleF(X, Top, Width, Bottom - Top); }
+        }
+
+        /// <summary>Borunun daha geniş olan ağız kısmı.</summary>
+        public RectangleF LipBounds
+        {
+            get
+            {
+                float lipY = OpensUpward ? Top : Bottom - LipHeight;
+                return new RectangleF(X - LipOverhang, lipY, Width + LipOverhang * 2, LipHeight);
+            }
+        }
+
+        /// <summary>Verilen dikdörtgen (kuş) boruya değiyor mu?</summary>
+        public bool Collides(RectangleF other)
+        {
+            return BodyBounds.IntersectsWith(other) || LipBounds.IntersectsWith(other);
+        }
+
+        /// <summary>Boruyu, gövdesine sarılı yanıp sönen ışıklarla birlikte çizer.</summary>
+        public void Draw(Graphics g, float time)
+        {
+            Draw(g);
+            DrawLights(g, time);
+        }
+
+        private void DrawLights(Graphics g, float time)
+        {
+            // Işık dizisi ağızdan biraz uzakta, gövdeye çapraz sarkar
+            float y = OpensUpward ? Top + LipHeight + 34 : Bottom - LipHeight - 30;
+            if (y < 10 || y > 790) return; // boru çok kısaysa ışık ekleme
+
+            float phase = OpensUpward ? 0f : 2.5f;
+            var lights = new LightString(
+                new PointF(X - 4, y + 14),
+                new PointF(X + Width + 4, y - 14),
+                5, 6, phase);
+            lights.Draw(g, time);
         }
 
         public void Draw(Graphics g)
         {
-            float lipY = OpensUpward ? Top : Bottom - LipHeight;
-            var body = new RectangleF(X, Top, Width, Bottom - Top);
-            var lip = new RectangleF(X - LipOverhang, lipY, Width + LipOverhang * 2, LipHeight);
+            RectangleF body = BodyBounds;
+            RectangleF lip = LipBounds;
 
             using (var outline = new Pen(Palette.PipeOutline, 2.5f))
             {
@@ -53,7 +90,7 @@ namespace FlappyBird.Entities
             }
 
             // Kar her zaman ağzın üst yüzeyinde birikir
-            Shapes.FillSnowCap(g, lip.X - 3, lip.Y, lip.Width + 6, 12, (int)X + (int)Top);
+            Shapes.FillSnowCap(g, lip.X - 3, lip.Y, lip.Width + 6, 12, (int)Width + (int)Top);
         }
 
         private static void FillTube(Graphics g, RectangleF r)

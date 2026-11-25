@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -21,17 +22,31 @@ namespace FlappyBird.Core
         /// <summary>Kuşun çarptığında oyunun bittiği zemin çizgisi (çitin üstü).</summary>
         public const float GroundY = 752f;
 
+        // Oyun ayarları
+        private const int PipeCount = 3;
+        private const float PipeSpacing = 275f;      // iki boru arası yatay mesafe
+        private const float GapSize = 215f;           // borular arasındaki boşluk
+        private const float StartSpeed = 150f;        // başlangıç kayma hızı (piksel/sn)
+        private const float SpeedPerPoint = 5f;       // her skorda hız artışı
+        private const float MaxSpeed = 280f;
+        private static readonly PointF BirdPlayStart = new PointF(130, 360);
+
         private readonly Background _background;
         private readonly Snowfall _snowfall;
         private readonly StartScreen _startScreen;
         private readonly Bird _bird;
         private readonly List<Pipe> _menuPipes = new List<Pipe>();
         private readonly List<LightString> _lights = new List<LightString>();
+        private readonly List<PipePair> _pipes = new List<PipePair>();
+        private readonly Random _random = new Random();
 
         private float _time;
 
         public GameState State { get; private set; }
         public int Score { get; private set; }
+
+        /// <summary>Boruların o anki kayma hızı; skor arttıkça yükselir.</summary>
+        public float Speed { get; private set; }
 
         public Game()
         {
@@ -69,8 +84,8 @@ namespace FlappyBird.Core
 
                 case GameState.Playing:
                     _bird.Update(dt, _time);
+                    UpdatePipes(dt);
                     CheckCollisions();
-                    // TODO (sonraki adım): borular, boru çarpışması ve skor
                     break;
 
                 case GameState.GameOver:
@@ -84,8 +99,59 @@ namespace FlappyBird.Core
             }
         }
 
+        private void CreatePipes()
+        {
+            _pipes.Clear();
+            for (int i = 0; i < PipeCount; i++)
+                _pipes.Add(new PipePair(Width + 60 + i * PipeSpacing, RandomGapCenter(), GapSize, Height));
+        }
+
+        /// <summary>Boşluğun merkezi için ekranın üstüne/zemine fazla yaklaşmayan rastgele bir değer.</summary>
+        private float RandomGapCenter()
+        {
+            float min = 90 + GapSize / 2;
+            float max = GroundY - 70 - GapSize / 2;
+            return min + (float)_random.NextDouble() * (max - min);
+        }
+
+        private void UpdatePipes(float dt)
+        {
+            float rightMost = 0;
+            foreach (PipePair p in _pipes)
+            {
+                p.Move(Speed * dt);
+                if (p.X > rightMost) rightMost = p.X;
+
+                if (p.TryPass(_bird.X))
+                {
+                    Score++;
+                    Speed = Math.Min(MaxSpeed, Speed + SpeedPerPoint);
+                }
+            }
+
+            // Ekrandan çıkan boruyu en sağdaki borunun arkasına taşı
+            foreach (PipePair p in _pipes)
+            {
+                if (p.IsOffScreen)
+                {
+                    p.Reposition(rightMost + PipeSpacing, RandomGapCenter(), GapSize);
+                    rightMost = p.X;
+                }
+            }
+        }
+
         private void CheckCollisions()
         {
+            // Borulara çarpma
+            foreach (PipePair p in _pipes)
+            {
+                if (p.Collides(_bird.Bounds))
+                {
+                    GameOver();
+                    return;
+                }
+            }
+
             // Zemine çarpma
             if (_bird.Y + Bird.HitRadiusY >= GroundY)
             {
@@ -119,6 +185,10 @@ namespace FlappyBird.Core
                 foreach (Pipe p in _menuPipes) p.Draw(g);
                 foreach (LightString l in _lights) l.Draw(g, _time);
                 _startScreen.Draw(g, _time);
+            }
+            else
+            {
+                foreach (PipePair p in _pipes) p.Draw(g, _time);
             }
 
             _bird.Draw(g);
@@ -189,7 +259,9 @@ namespace FlappyBird.Core
         public void Start()
         {
             Score = 0;
-            _bird.Reset();
+            Speed = StartSpeed;
+            CreatePipes();
+            _bird.Reset(BirdPlayStart.X, BirdPlayStart.Y);
             _bird.Jump();
             State = GameState.Playing;
         }
