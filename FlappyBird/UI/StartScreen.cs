@@ -18,6 +18,9 @@ namespace FlappyBird.UI
         /// <summary>Butonun sanal ekrandaki alanı (tıklama kontrolü için).</summary>
         public RectangleF ButtonBounds { get; private set; }
 
+        /// <summary>Menüde gösterilecek en yüksek skor.</summary>
+        public int HighScore { get; set; }
+
         /// <summary>Fare butonun üzerindeyse true.</summary>
         public bool IsButtonHovered { get; set; }
 
@@ -42,8 +45,58 @@ namespace FlappyBird.UI
             DrawHolly(g, new PointF(bird.Left - 38, bird.Top + 40), false);
             DrawHolly(g, new PointF(bird.Right + 40, bird.Top + 6), true);
 
+            DrawHighScoreBadge(g);
             DrawButton(g, time);
             DrawHint(g, time);
+        }
+
+        /// <summary>Başlık ile buton arasındaki kupa simgeli rekor rozeti.</summary>
+        private void DrawHighScoreBadge(Graphics g)
+        {
+            var pill = new RectangleF(_centerX - 78, ButtonBounds.Top - 46, 156, 34);
+            using (var path = Shapes.RoundedRect(pill, 17))
+            using (var bg = new SolidBrush(Color.FromArgb(170, 10, 16, 50)))
+            using (var border = new Pen(Palette.Gold, 2f))
+            {
+                g.FillPath(bg, path);
+                g.DrawPath(border, path);
+            }
+
+            DrawTrophy(g, pill.X + 24, pill.Y + pill.Height / 2);
+
+            var textArea = new RectangleF(pill.X + 40, pill.Y, pill.Width - 48, pill.Height);
+            using (var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+            using (var text = new GraphicsPath())
+            {
+                text.AddString("Rekor: " + HighScore, FontManager.Title, 0, 21, textArea, format);
+                using (var b = new SolidBrush(Palette.Gold))
+                    g.FillPath(b, text);
+            }
+        }
+
+        /// <summary>Küçük altın kupa simgesi.</summary>
+        private static void DrawTrophy(Graphics g, float cx, float cy)
+        {
+            using (var gold = new SolidBrush(Palette.Gold))
+            using (var dark = new Pen(Color.FromArgb(150, 90, 20), 1.4f))
+            using (var cup = new GraphicsPath())
+            {
+                // Kulplar
+                g.DrawArc(dark, cx - 12, cy - 9, 9, 9, 90, 180);
+                g.DrawArc(dark, cx + 3, cy - 9, 9, 9, 270, 180);
+
+                // Kupa gövdesi
+                cup.AddBezier(cx - 8, cy - 10, cx - 8, cy + 2, cx - 4, cy + 4, cx, cy + 4);
+                cup.AddBezier(cx, cy + 4, cx + 4, cy + 4, cx + 8, cy + 2, cx + 8, cy - 10);
+                cup.CloseFigure();
+                g.FillPath(gold, cup);
+                g.DrawPath(dark, cup);
+
+                // Ayak ve kaide
+                g.FillRectangle(gold, cx - 1.5f, cy + 4, 3, 4);
+                g.FillRectangle(gold, cx - 6, cy + 8, 12, 3);
+                g.DrawRectangle(dark, cx - 6, cy + 8, 12, 3);
+            }
         }
 
         /// <summary>Butonun altında hafifçe yanıp sönen kontrol ipucu.</summary>

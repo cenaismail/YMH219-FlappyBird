@@ -39,11 +39,15 @@ namespace FlappyBird.Core
         private readonly List<LightString> _lights = new List<LightString>();
         private readonly List<PipePair> _pipes = new List<PipePair>();
         private readonly Random _random = new Random();
+        private readonly HighScore _highScore = new HighScore();
 
         private float _time;
 
         public GameState State { get; private set; }
         public int Score { get; private set; }
+
+        /// <summary>Son oyunda rekor kırıldıysa true (Game Over panelinde gösterilir).</summary>
+        public bool IsNewRecord { get; private set; }
 
         /// <summary>Boruların o anki kayma hızı; skor arttıkça yükselir.</summary>
         public float Speed { get; private set; }
@@ -168,6 +172,7 @@ namespace FlappyBird.Core
         private void GameOver()
         {
             State = GameState.GameOver;
+            IsNewRecord = _highScore.Submit(Score);
         }
 
         // ------------------------------------------------------------- Çizim
@@ -184,6 +189,7 @@ namespace FlappyBird.Core
             {
                 foreach (Pipe p in _menuPipes) p.Draw(g);
                 foreach (LightString l in _lights) l.Draw(g, _time);
+                _startScreen.HighScore = _highScore.Best;
                 _startScreen.Draw(g, _time);
             }
             else
@@ -207,7 +213,7 @@ namespace FlappyBird.Core
 
         private void DrawGameOver(Graphics g)
         {
-            var panel = new RectangleF(55, 290, Width - 110, 190);
+            var panel = new RectangleF(55, 270, Width - 110, 240);
             using (var path = Shapes.RoundedRect(panel, 24))
             using (var bg = new SolidBrush(Color.FromArgb(215, 18, 28, 80)))
             using (var pen = new Pen(Palette.Outline, 4))
@@ -217,10 +223,24 @@ namespace FlappyBird.Core
             }
             Shapes.FillSnowCap(g, panel.X + 10, panel.Y + 1, panel.Width - 20, 12, 4);
 
-            DrawOutlinedText(g, "Game Over", 50, new RectangleF(panel.X, panel.Y + 26, panel.Width, 64), Palette.Red, 8);
-            DrawOutlinedText(g, "Skor: " + Score, 30, new RectangleF(panel.X, panel.Y + 92, panel.Width, 40), Palette.Cream, 6);
-            DrawOutlinedText(g, "Space: Yeniden Basla   Esc: Menu", 17, new RectangleF(panel.X, panel.Y + 142, panel.Width, 30),
-                Palette.Gold, 4);
+            DrawOutlinedText(g, "Game Over", 50, new RectangleF(panel.X, panel.Y + 24, panel.Width, 64), Palette.Red, 8);
+            DrawOutlinedText(g, "Skor: " + Score, 30, new RectangleF(panel.X, panel.Y + 88, panel.Width, 40), Palette.Cream, 6);
+            DrawOutlinedText(g, "Rekor: " + _highScore.Best, 24, new RectangleF(panel.X, panel.Y + 128, panel.Width, 34), Palette.Gold, 5);
+
+            if (IsNewRecord)
+            {
+                // Yeni rekor yazısı hafifçe büyüyüp küçülür
+                float pulse = 1f + 0.06f * (float)Math.Sin(_time * 6);
+                GraphicsState s = g.Save();
+                g.TranslateTransform(panel.Right - 30, panel.Y + 16);
+                g.RotateTransform(12);
+                g.ScaleTransform(pulse, pulse);
+                DrawOutlinedText(g, "Yeni Rekor!", 22, new RectangleF(-80, -18, 160, 36), Palette.Gold, 6);
+                g.Restore(s);
+            }
+
+            DrawOutlinedText(g, "Space: Yeniden Basla   Esc: Menu", 17, new RectangleF(panel.X, panel.Y + 182, panel.Width, 30),
+                Palette.Cream, 4);
         }
 
         private static void DrawOutlinedText(Graphics g, string text, float size, RectangleF area, Color fill, float outline)
