@@ -88,5 +88,5 @@ FlappyBird/
 
 ## Öğrenci
 
-- **Ad Soyad:** _AD SOYAD_
-- **Öğrenci No:** _NUMARA_
+- **Ad Soyad:** _Cena İsmail_
+- **Öğrenci No:** _250541615_
